@@ -5,8 +5,9 @@ static Window *window;
 static GBitmap *background_image;
 static BitmapLayer *background_layer;
 
-//static GBitmap *meter_bar_image;
-//static BitmapLayer *meter_bar_layer;
+static GBitmap *meter_bar_image;
+static BitmapLayer *meter_bar_layer;
+GRect meter_bar_frame;
 
 // TODO: Handle 12/24 mode preference when it's exposed.
 static GBitmap *time_format_image;
@@ -214,6 +215,10 @@ static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
   update_display(tick_time, false);
 }
 
+static void handle_battery_state (BatteryChargeState charge) {
+  meter_bar_frame.size.w = (meter_bar_image->bounds.size.w * charge.charge_percent) / 100;
+  layer_set_frame(bitmap_layer_get_layer(meter_bar_layer), meter_bar_frame);
+}
 
 static void init(void) {
   memset(&time_digits_layers, 0, sizeof(time_digits_layers));
@@ -260,6 +265,15 @@ static void init(void) {
   bitmap_layer_set_bitmap(bluetooth_layer, bluetooth_image);
   layer_add_child(window_layer, bitmap_layer_get_layer(bluetooth_layer));
 
+  meter_bar_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_METER_BAR);
+  meter_bar_frame = (GRect) {
+    .origin = { .x = 13, .y = 128 },
+    .size = (GSize) { .w = meter_bar_image->bounds.size.w, .h = meter_bar_image->bounds.size.h}
+  };
+  meter_bar_layer = bitmap_layer_create(meter_bar_frame);
+  bitmap_layer_set_bitmap(meter_bar_layer, meter_bar_image);
+  layer_add_child(window_layer, bitmap_layer_get_layer(meter_bar_layer));
+
   // Create time and date layers
   GRect dummy_frame = { {0, 0}, {0, 0} };
   day_name_layer = bitmap_layer_create(dummy_frame);
@@ -294,6 +308,8 @@ static void init(void) {
   tick_timer_service_subscribe(SECOND_UNIT, handle_second_tick);
   bluetooth_connection_service_subscribe(handle_bluetooth_connection);
   handle_bluetooth_connection(bluetooth_connection_service_peek());
+  battery_state_service_subscribe(handle_battery_state);
+  handle_battery_state(battery_state_service_peek());
 }
 
 
@@ -305,6 +321,10 @@ static void deinit(void) {
   layer_remove_from_parent(bitmap_layer_get_layer(bluetooth_layer));
   bitmap_layer_destroy(bluetooth_layer);
   gbitmap_destroy(bluetooth_image);
+
+  layer_remove_from_parent(bitmap_layer_get_layer(meter_bar_layer));
+  bitmap_layer_destroy(meter_bar_layer);
+  gbitmap_destroy(meter_bar_image);
 
   layer_remove_from_parent(bitmap_layer_get_layer(time_format_layer));
   bitmap_layer_destroy(time_format_layer);
