@@ -116,7 +116,7 @@ static void update_time (struct tm *current_time) {
 
   int yPos = 70;
   // TODO: Remove leading zero?
-  set_container_image(&time_digits_images[0], time_digits_layers[0], BIG_DIGIT_IMAGE_RESOURCE_IDS[display_hour/10], GPoint(0, yPos));
+  set_container_image(&time_digits_images[0], time_digits_layers[0], BIG_DIGIT_IMAGE_RESOURCE_IDS[display_hour/10], GPoint(18, yPos));
   set_container_image(&time_digits_images[1], time_digits_layers[1], BIG_DIGIT_IMAGE_RESOURCE_IDS[display_hour%10], GPoint(38, yPos));
 
   set_container_image(&time_digits_images[2], time_digits_layers[2], BIG_DIGIT_IMAGE_RESOURCE_IDS[current_time->tm_min/10], GPoint(65, yPos));
@@ -124,10 +124,10 @@ static void update_time (struct tm *current_time) {
 
   if (!clock_is_24h_style()) {
     if (current_time->tm_hour >= 12) {
-    	layer_set_hidden(bitmap_layer_get_layer(time_format_layer), false);
-      set_container_image(&time_format_image, time_format_layer, RESOURCE_ID_IMAGE_PM_MODE, GPoint(10, 75));
+      layer_set_hidden(bitmap_layer_get_layer(time_format_layer), false);
+      set_container_image(&time_format_image, time_format_layer, RESOURCE_ID_IMAGE_PM_MODE, GPoint(7, 75));
     } else {
-    	layer_set_hidden(bitmap_layer_get_layer(time_format_layer), true);
+      layer_set_hidden(bitmap_layer_get_layer(time_format_layer), true);
     }
 
     if (display_hour/10 == 0) {
