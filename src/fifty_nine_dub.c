@@ -12,6 +12,7 @@ GRect meter_bar_frame;
 // TODO: Handle 12/24 mode preference when it's exposed.
 static GBitmap *time_format_image;
 static BitmapLayer *time_format_layer;
+static bool time_format_image_loaded = false;
 
 static GBitmap *bluetooth_image;
 static BitmapLayer *bluetooth_layer;
@@ -258,6 +259,7 @@ static void init(void) {
   layer_add_child(window_layer, bitmap_layer_get_layer(background_layer));
 
   if (!clock_is_24h_style()) {
+    time_format_image_loaded = true;
     time_format_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_24_HOUR_MODE);
     GRect frame = (GRect) {
       .origin = { .x = 17, .y = 68 },
@@ -338,9 +340,11 @@ static void deinit(void) {
   bitmap_layer_destroy(meter_bar_layer);
   gbitmap_destroy(meter_bar_image);
 
-  layer_remove_from_parent(bitmap_layer_get_layer(time_format_layer));
-  bitmap_layer_destroy(time_format_layer);
-  gbitmap_destroy(time_format_image);
+  if (time_format_image_loaded) {
+  	layer_remove_from_parent(bitmap_layer_get_layer(time_format_layer));
+  	bitmap_layer_destroy(time_format_layer);
+  	gbitmap_destroy(time_format_image);
+  }
 
   layer_remove_from_parent(bitmap_layer_get_layer(day_name_layer));
   bitmap_layer_destroy(day_name_layer);
