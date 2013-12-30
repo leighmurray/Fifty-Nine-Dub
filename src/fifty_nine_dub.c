@@ -216,7 +216,9 @@ static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 static void handle_battery_state (BatteryChargeState charge) {
-  meter_bar_frame.size.w = (meter_bar_image->bounds.size.w * charge.charge_percent) / 100;
+  // a little hack for battery indicator, rounding battery up by 10%
+  int altered_charge = (charge.charge_percent <= 90) ? charge.charge_percent+10 : charge.charge_percent;
+  meter_bar_frame.size.w = (meter_bar_image->bounds.size.w * altered_charge) / 100;
   layer_set_frame(bitmap_layer_get_layer(meter_bar_layer), meter_bar_frame);
 }
 
