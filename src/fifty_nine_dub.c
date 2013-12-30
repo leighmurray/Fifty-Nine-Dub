@@ -205,11 +205,21 @@ static void update_display(struct tm *current_time, bool force_update) {
   }
 }
 
-static void handle_bluetooth_connection (bool isConnected) {
-  layer_set_hidden(bitmap_layer_get_layer(bluetooth_layer), isConnected);
+static void vibrate_for_disconnect () {
+  static const uint32_t const segments[] = { 50, 100, 50, 100, 50 };
+  VibePattern pat = {
+	.durations = segments,
+	.num_segments = ARRAY_LENGTH(segments),
+  };
+  vibes_enqueue_custom_pattern(pat);
 }
 
-
+static void handle_bluetooth_connection (bool isConnected) {
+  layer_set_hidden(bitmap_layer_get_layer(bluetooth_layer), isConnected);
+  if (!isConnected) {
+    vibrate_for_disconnect();
+  }
+}
 
 static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
   update_display(tick_time, false);
