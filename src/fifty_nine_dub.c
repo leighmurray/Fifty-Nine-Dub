@@ -80,6 +80,14 @@ static BitmapLayer *time_digits_layers[TOTAL_TIME_DIGITS];
 static GBitmap *year_digits_images[TOTAL_YEAR_DIGITS];
 static BitmapLayer *year_digits_layers[TOTAL_YEAR_DIGITS];
 
+static const uint32_t const disconnectVibeSegments[] = { 35,100,35,100,35,100 };
+VibePattern disconnectVibePattern = {
+  .durations = disconnectVibeSegments,
+  .num_segments = ARRAY_LENGTH(disconnectVibeSegments),
+};
+
+static bool connectionStatus;
+
 static void set_container_image(GBitmap **bmp_image, BitmapLayer *bmp_layer, const int resource_id, GPoint origin) {
   GBitmap *old_image = *bmp_image;
 
@@ -216,6 +224,7 @@ static void vibrate_for_disconnect () {
 }
 
 static void handle_bluetooth_connection (bool isConnected) {
+	connectionStatus = isConnected;
   layer_set_hidden(bitmap_layer_get_layer(bluetooth_layer), isConnected);
   if (!isConnected) {
     vibrate_for_disconnect();
@@ -224,6 +233,9 @@ static void handle_bluetooth_connection (bool isConnected) {
 
 static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
   update_display(tick_time, false);
+	
+  if (!connectionStatus)
+	  vibes_enqueue_custom_pattern(disconnectVibePattern);
 }
 
 static void handle_battery_state (BatteryChargeState charge) {
