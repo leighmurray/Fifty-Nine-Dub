@@ -20,6 +20,11 @@ static bool time_format_image_loaded = false;
 static GBitmap *bluetooth_image;
 static BitmapLayer *bluetooth_layer;
 
+static GBitmap *charge_image_white;
+static BitmapLayer *charge_layer_white;
+static GBitmap *charge_image_black;
+static BitmapLayer *charge_layer_black;
+
 #define DATE_FORMAT_PKEY 1
 #define DATE_FORMAT_US 1
 #define DATE_FORMAT_INT 2
@@ -272,6 +277,9 @@ static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 static void handle_battery_state (BatteryChargeState charge) {
+  layer_set_hidden(bitmap_layer_get_layer(charge_layer_white), !charge.is_plugged);
+  layer_set_hidden(bitmap_layer_get_layer(charge_layer_black), !charge.is_plugged);
+
   // a little hack for battery indicator, rounding battery up by 10%
   int altered_charge = (charge.charge_percent <= 90) ? charge.charge_percent+10 : charge.charge_percent;
   meter_bar_frame.size.w = (meter_bar_image->bounds.size.w * altered_charge) / 100;
@@ -382,6 +390,26 @@ static void init(void) {
   bitmap_layer_set_bitmap(meter_bar_layer, meter_bar_image);
   layer_add_child(window_layer, bitmap_layer_get_layer(meter_bar_layer));
 
+  charge_image_white = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_CHARGE_ICON_WHITE);
+  charge_image_black = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_CHARGE_ICON_BLACK);
+
+  GRect charge_frame = (GRect) {
+    .origin = { .x = 16, .y = 128 },
+    .size = charge_image_white->bounds.size
+  };
+
+  // Use GCompOpOr to display the white portions of the image
+  charge_layer_white = bitmap_layer_create(charge_frame);
+  bitmap_layer_set_bitmap(charge_layer_white, charge_image_white);
+  bitmap_layer_set_compositing_mode(charge_layer_white, GCompOpOr);
+  layer_add_child(window_layer, bitmap_layer_get_layer(charge_layer_white));
+
+  // Use GCompOpClear to display the black portions of the image
+  charge_layer_black = bitmap_layer_create(charge_frame);
+  bitmap_layer_set_bitmap(charge_layer_black, charge_image_black);
+  bitmap_layer_set_compositing_mode(charge_layer_black, GCompOpClear);
+  layer_add_child(window_layer, bitmap_layer_get_layer(charge_layer_black));
+
   // Create time and date layers
   GRect dummy_frame = { {0, 0}, {0, 0} };
   day_name_layer = bitmap_layer_create(dummy_frame);
@@ -444,6 +472,14 @@ static void deinit(void) {
   layer_remove_from_parent(bitmap_layer_get_layer(meter_bar_layer));
   bitmap_layer_destroy(meter_bar_layer);
   gbitmap_destroy(meter_bar_image);
+
+  layer_remove_from_parent(bitmap_layer_get_layer(charge_layer_white));
+  layer_remove_from_parent(bitmap_layer_get_layer(charge_layer_black));
+  bitmap_layer_destroy(charge_layer_white);
+  bitmap_layer_destroy(charge_layer_black);
+
+  gbitmap_destroy(charge_image_white);
+  gbitmap_destroy(charge_image_black);
 
   if (time_format_image_loaded) {
   	layer_remove_from_parent(bitmap_layer_get_layer(time_format_layer));

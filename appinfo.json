@@ -186,6 +186,11 @@
         "type": "png",
         "name": "IMAGE_DATE_FORMAT_INT",
         "file": "images/int_date.png"
+      },
+      {
+        "type": "png-trans",
+        "name": "IMAGE_CHARGE_ICON",
+        "file": "images/charge.png"
       }
     ]
   }
