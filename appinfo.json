@@ -5,6 +5,7 @@
   "companyName" : "Leigh Murray",
   "versionCode" : 1,
   "versionLabel" : "1.0",
+  "capabilities": [ "configurable" ],
   "watchapp" : {
     "watchface" : true
   },
@@ -175,6 +176,16 @@
         "type": "png",
         "name": "IMAGE_NUM_9",
         "file": "images/num_9.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_DATE_FORMAT_US",
+        "file": "images/us_date.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_DATE_FORMAT_INT",
+        "file": "images/int_date.png"
       }
     ]
   }

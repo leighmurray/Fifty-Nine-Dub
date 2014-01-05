@@ -5,6 +5,9 @@ static Window *window;
 static GBitmap *background_image;
 static BitmapLayer *background_layer;
 
+static GBitmap *date_format_image;
+static BitmapLayer *date_format_layer;
+
 static GBitmap *meter_bar_image;
 static BitmapLayer *meter_bar_layer;
 GRect meter_bar_frame;
@@ -17,6 +20,11 @@ static bool time_format_image_loaded = false;
 static GBitmap *bluetooth_image;
 static BitmapLayer *bluetooth_layer;
 
+#define DATE_FORMAT_PKEY 1
+#define DATE_FORMAT_US 1
+#define DATE_FORMAT_INT 2
+
+static int current_date_format;
 
 const int DAY_NAME_IMAGE_RESOURCE_IDS[] = {
   RESOURCE_ID_IMAGE_DAY_NAME_SUN,
@@ -80,6 +88,10 @@ static BitmapLayer *time_digits_layers[TOTAL_TIME_DIGITS];
 static GBitmap *year_digits_images[TOTAL_YEAR_DIGITS];
 static BitmapLayer *year_digits_layers[TOTAL_YEAR_DIGITS];
 
+void in_dropped_handler(AppMessageResult reason, void *context) {
+  // incoming message dropped
+}
+
 static void set_container_image(GBitmap **bmp_image, BitmapLayer *bmp_layer, const int resource_id, GPoint origin) {
   GBitmap *old_image = *bmp_image;
 
@@ -141,11 +153,32 @@ static void update_time (struct tm *current_time) {
 }
 
 static void update_date (int day_of_month, int days_since_sunday) {
-	set_container_image(&day_name_image, day_name_layer, DAY_NAME_IMAGE_RESOURCE_IDS[days_since_sunday], GPoint(33, 126));
+  set_container_image(&day_name_image, day_name_layer, DAY_NAME_IMAGE_RESOURCE_IDS[days_since_sunday], GPoint(33, 126));
 
-  // TODO: Remove leading zero?
-  set_container_image(&date_digits_images[0], date_digits_layers[0], DATENUM_IMAGE_RESOURCE_IDS[day_of_month/10], GPoint(46, 37));
-  set_container_image(&date_digits_images[1], date_digits_layers[1], DATENUM_IMAGE_RESOURCE_IDS[day_of_month%10], GPoint(59, 37));
+  int date_digit_ten = day_of_month/10;
+  int date_digit_one = day_of_month%10;
+  GPoint date_digit_ten_pos;
+  GPoint date_digit_one_pos;
+
+  if (current_date_format == DATE_FORMAT_US) {
+    date_digit_ten_pos = GPoint(46, 37);
+    date_digit_one_pos = GPoint(59, 37);
+    layer_set_hidden(bitmap_layer_get_layer(date_digits_layers[0]), false);
+
+  } else {
+
+    date_digit_ten_pos = GPoint(14, 37);
+    date_digit_one_pos = GPoint(27, 37);
+
+    if (date_digit_ten == 0) {
+      layer_set_hidden(bitmap_layer_get_layer(date_digits_layers[0]), true);
+    } else {
+	  layer_set_hidden(bitmap_layer_get_layer(date_digits_layers[0]), false);
+    }
+  }
+
+  set_container_image(&date_digits_images[0], date_digits_layers[0], DATENUM_IMAGE_RESOURCE_IDS[date_digit_ten], date_digit_ten_pos);
+  set_container_image(&date_digits_images[1], date_digits_layers[1], DATENUM_IMAGE_RESOURCE_IDS[date_digit_one], date_digit_one_pos);
 
 }
 
@@ -153,14 +186,26 @@ static void update_month (int months_since_january) {
   int month_value = months_since_january + 1;
   int month_digit_ten = month_value/10;
   int month_digit_one = month_value%10;
+  GPoint month_digit_ten_pos;
+  GPoint month_digit_one_pos;
 
-  if (month_digit_ten == 0) {
-    layer_set_hidden(bitmap_layer_get_layer(month_digits_layers[0]), true);
+  if (current_date_format == DATE_FORMAT_US) {
+    month_digit_ten_pos = GPoint(14, 37);
+    month_digit_one_pos = GPoint(27, 37);
+
+    if (month_digit_ten == 0) {
+      layer_set_hidden(bitmap_layer_get_layer(month_digits_layers[0]), true);
+    } else {
+	  layer_set_hidden(bitmap_layer_get_layer(month_digits_layers[0]), false);
+    }
   } else {
-	layer_set_hidden(bitmap_layer_get_layer(month_digits_layers[0]), false);
+    month_digit_ten_pos = GPoint(46, 37);
+    month_digit_one_pos = GPoint(59, 37);
+    layer_set_hidden(bitmap_layer_get_layer(month_digits_layers[0]), false);
   }
-  set_container_image(&month_digits_images[0], month_digits_layers[0], DATENUM_IMAGE_RESOURCE_IDS[month_digit_ten], GPoint(14, 37));
-  set_container_image(&month_digits_images[1], month_digits_layers[1], DATENUM_IMAGE_RESOURCE_IDS[month_digit_one], GPoint(27, 37));
+
+  set_container_image(&month_digits_images[0], month_digits_layers[0], DATENUM_IMAGE_RESOURCE_IDS[month_digit_ten], month_digit_ten_pos);
+  set_container_image(&month_digits_images[1], month_digits_layers[1], DATENUM_IMAGE_RESOURCE_IDS[month_digit_one], month_digit_one_pos);
 
 }
 
@@ -233,7 +278,56 @@ static void handle_battery_state (BatteryChargeState charge) {
   layer_set_frame(bitmap_layer_get_layer(meter_bar_layer), meter_bar_frame);
 }
 
+// this function will be called when the iphone app sends through the new date format
+static void set_date_format (int date_format) {
+  current_date_format = date_format;
+
+  if (current_date_format == DATE_FORMAT_US) {
+  	set_container_image(&date_format_image, date_format_layer, RESOURCE_ID_IMAGE_DATE_FORMAT_US, GPoint(33, 30));
+  } else {
+    set_container_image(&date_format_image, date_format_layer, RESOURCE_ID_IMAGE_DATE_FORMAT_INT, GPoint(33, 30));
+  }
+
+  time_t now = time(NULL);
+  struct tm *tick_time = localtime(&now);
+  update_display(tick_time, true);
+}
+
+// this function will be called when the app initialises
+static void load_date_format () {
+
+  if (persist_exists(DATE_FORMAT_PKEY)) {
+    set_date_format(persist_read_int(DATE_FORMAT_PKEY));
+  } else {
+    // default to US
+  	set_date_format(DATE_FORMAT_US);
+  }
+}
+
+void in_received_handler(DictionaryIterator *iter, void *context) {
+  // incoming message received
+
+  Tuple *number_tuple = dict_find(iter, 0);
+
+  int headerLength = strlen(number_tuple->value->cstring) + 1;
+  char header[headerLength];
+  strncpy(header, number_tuple->value->cstring, headerLength);
+
+  // Check for fields you expect to receive
+  Tuple *text_tuple = dict_find(iter, 1);
+
+  //APP_LOG(APP_LOG_LEVEL_DEBUG, "Header: %s", header);
+
+  if (strcmp(header, "set_date_format") == 0) {
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Date Format: %d", text_tuple->value->uint8);
+    set_date_format(text_tuple->value->uint8);
+  } else if (strcmp(header, "error") == 0) {
+  	///text_layer_set_text(status_layer, text_tuple->value->cstring);
+  }
+}
+
 static void init(void) {
+
   memset(&time_digits_layers, 0, sizeof(time_digits_layers));
   memset(&time_digits_images, 0, sizeof(time_digits_images));
   memset(&date_digits_layers, 0, sizeof(date_digits_layers));
@@ -313,21 +407,32 @@ static void init(void) {
     layer_add_child(window_layer, bitmap_layer_get_layer(seconds_digits_layers[i]));
   }
 
-  // Avoids a blank screen on watch start.
-  time_t now = time(NULL);
-  struct tm *tick_time = localtime(&now);
+  date_format_layer = bitmap_layer_create(dummy_frame);
+  layer_add_child(window_layer, bitmap_layer_get_layer(date_format_layer));
 
-  update_display(tick_time, true);
+  // Avoids a blank screen on watch start.
 
   tick_timer_service_subscribe(SECOND_UNIT, handle_second_tick);
   bluetooth_connection_service_subscribe(handle_bluetooth_connection);
   handle_bluetooth_connection(bluetooth_connection_service_peek());
   battery_state_service_subscribe(handle_battery_state);
   handle_battery_state(battery_state_service_peek());
+
+  // load date format updates the display
+  load_date_format();
+
+  app_message_register_inbox_received(in_received_handler);
+  app_message_register_inbox_dropped(in_dropped_handler);
+  const uint32_t inbound_size = 64;
+  const uint32_t outbound_size = 64;
+  app_message_open(inbound_size, outbound_size);
 }
 
 
 static void deinit(void) {
+  //APP_LOG(APP_LOG_LEVEL_DEBUG, "Writing Persistant Data %d", current_date_format);
+  persist_write_int(DATE_FORMAT_PKEY, current_date_format);
+
   layer_remove_from_parent(bitmap_layer_get_layer(background_layer));
   bitmap_layer_destroy(background_layer);
   gbitmap_destroy(background_image);
@@ -350,6 +455,9 @@ static void deinit(void) {
   bitmap_layer_destroy(day_name_layer);
   gbitmap_destroy(day_name_image);
 
+  layer_remove_from_parent(bitmap_layer_get_layer(date_format_layer));
+  bitmap_layer_destroy(date_format_layer);
+  gbitmap_destroy(date_format_image);
 
   for (int i = 0; i < TOTAL_DATE_DIGITS; i++) {
     layer_remove_from_parent(bitmap_layer_get_layer(date_digits_layers[i]));
