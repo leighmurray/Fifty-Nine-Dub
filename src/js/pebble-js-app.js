@@ -9,11 +9,11 @@ Pebble.addEventListener("ready",
 
 Pebble.addEventListener("showConfiguration",
   function(e) {
-	//var url = 'http://59dub.leighmurray.com/settings.htm';
+	var url = 'http://59dub.leighmurray.com/settings.htm';
 	//url += GetJSONConfig();
 	//url = encodeURI(url);
 	//console.log(url);
-	Pebble.openURL('http://www.google.com/');
+	Pebble.openURL(url);
   }
 );
 
