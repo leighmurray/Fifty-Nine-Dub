@@ -1,38 +1,38 @@
 var configKeys = ["DATE_FORMAT"];
 
-window.localStorage.removeItem("DATE_FORMAT");
-
 Pebble.addEventListener("ready",
   function(e) {
   	//console.log("Yes, it's running!!!");
 	SendDateFormat();
-  	Pebble.addEventListener("showConfiguration",
-	  function(e) {
+  }
+);
 
-	    var url = "http://59dub.leighmurray.com/settings.htm#";
-		url += GetJSONConfig();
-		url = encodeURI(url);
-		//console.log(url);
-		Pebble.openURL(url);
-	  }
-	);
-    Pebble.addEventListener("webviewclosed",
-      function(e) {
-  		var stopStr = "";
-    	//console.log("Configuration window returned: " + e.response);
-    	if (!e.response) {
-    	  return;
-    	}
+Pebble.addEventListener("showConfiguration",
+  function(e) {
+	//var url = 'http://59dub.leighmurray.com/settings.htm';
+	//url += GetJSONConfig();
+	//url = encodeURI(url);
+	//console.log(url);
+	Pebble.openURL('http://www.google.com/');
+  }
+);
 
-    	var configuration = JSON.parse(e.response);
 
-    	for (var i = 0; i < configuration.length; i++) {
-    	  var returnedObject = configuration[i];
-		  SetConfig(returnedObject.name, returnedObject.value);
-    	}
-    	SendDateFormat();
-  	  }
-	);
+Pebble.addEventListener("webviewclosed",
+  function(e) {
+  	var stopStr = "";
+    //console.log("Configuration window returned: " + e.response);
+    if (!e.response) {
+      return;
+    }
+
+    var configuration = JSON.parse(e.response);
+
+    for (var i = 0; i < configuration.length; i++) {
+      var returnedObject = configuration[i];
+		SetConfig(returnedObject.name, returnedObject.value);
+      }
+    SendDateFormat();
   }
 );
 
@@ -41,7 +41,7 @@ function SendDateFormat () {
 	if (format !== null) {
 		SendAppMessage("set_date_format", Number(format));
 	} else {
-		console.log("no date found");
+		console.log("no date format found");
 	}
 }
 
@@ -68,7 +68,6 @@ function SendAppMessage (header, content) {
   		}
 	);
 }
-
 
 function GetConfig (key) {
 	return window.localStorage.getItem(key);
