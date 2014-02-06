@@ -20,16 +20,21 @@ static bool time_format_image_loaded = false;
 static GBitmap *bluetooth_image;
 static BitmapLayer *bluetooth_layer;
 
+static GBitmap *signal_image;
+static BitmapLayer *signal_layer;
+
 static GBitmap *charge_image_white;
 static BitmapLayer *charge_layer_white;
 static GBitmap *charge_image_black;
 static BitmapLayer *charge_layer_black;
 
 #define DATE_FORMAT_PKEY 1
+#define SIGNAL_PKEY 2
 #define DATE_FORMAT_US 1
 #define DATE_FORMAT_INT 2
 
 static int current_date_format;
+static bool signal_is_on;
 
 const int DAY_NAME_IMAGE_RESOURCE_IDS[] = {
   RESOURCE_ID_IMAGE_DAY_NAME_SUN,
@@ -113,6 +118,23 @@ static void set_container_image(GBitmap **bmp_image, BitmapLayer *bmp_layer, con
   }
 }
 
+static void vibrate_for_disconnect () {
+  static const uint32_t const segments[] = { 50, 100, 50, 100, 50 };
+  VibePattern pat = {
+	.durations = segments,
+	.num_segments = ARRAY_LENGTH(segments),
+  };
+  vibes_enqueue_custom_pattern(pat);
+}
+
+static void vibrate_for_hour () {
+  static const uint32_t const segments[] = {100};
+  VibePattern pat = {
+	.durations = segments,
+	.num_segments = ARRAY_LENGTH(segments),
+  };
+  vibes_enqueue_custom_pattern(pat);
+}
 
 static unsigned short get_display_hour(unsigned short hour) {
   if (clock_is_24h_style()) {
@@ -233,6 +255,11 @@ static void update_year (int years_since_1900) {
 
 }
 
+static void set_signal (bool is_on) {
+	signal_is_on = is_on;
+	layer_set_hidden(bitmap_layer_get_layer(signal_layer), !signal_is_on);
+}
+
 static void update_display(struct tm *current_time, bool force_update) {
 
   update_seconds(current_time->tm_sec);
@@ -240,6 +267,11 @@ static void update_display(struct tm *current_time, bool force_update) {
   if (current_time->tm_sec == 0 || force_update) {
   	// the hours and minutes
     update_time(current_time);
+
+    // vibrate on the hour!
+	if (current_time->tm_min == 0 && signal_is_on) {
+		vibrate_for_hour();
+	}
 
     if ((current_time->tm_hour == 0 && current_time->tm_min == 0) || force_update) {
   		// the day and date
@@ -254,15 +286,6 @@ static void update_display(struct tm *current_time, bool force_update) {
       }
   	}
   }
-}
-
-static void vibrate_for_disconnect () {
-  static const uint32_t const segments[] = { 50, 100, 50, 100, 50 };
-  VibePattern pat = {
-	.durations = segments,
-	.num_segments = ARRAY_LENGTH(segments),
-  };
-  vibes_enqueue_custom_pattern(pat);
 }
 
 static void handle_bluetooth_connection (bool isConnected) {
@@ -312,6 +335,17 @@ static void load_date_format () {
   }
 }
 
+// this function will be called when the app initialises
+static void load_signal () {
+
+  if (persist_exists(SIGNAL_PKEY)) {
+    set_signal(persist_read_bool(SIGNAL_PKEY));
+  } else {
+  	set_signal(false);
+  }
+}
+
+
 void out_sent_handler(DictionaryIterator *sent, void *context) {
    // outgoing message was delivered
 }
@@ -337,7 +371,13 @@ void in_received_handler(DictionaryIterator *iter, void *context) {
   if (strcmp(header, "set_date_format") == 0) {
     //APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Date Format: %d", text_tuple->value->uint8);
     set_date_format(text_tuple->value->uint8);
-  } else if (strcmp(header, "error") == 0) {
+  }
+  else if (strcmp(header, "set_signal") == 0) {
+  	int returned_value = text_tuple->value->uint8;
+
+    set_signal(returned_value == 1 ? true : false);
+  }
+  else if (strcmp(header, "error") == 0) {
   	///text_layer_set_text(status_layer, text_tuple->value->cstring);
   }
 }
@@ -398,6 +438,15 @@ static void init(void) {
   bitmap_layer_set_bitmap(meter_bar_layer, meter_bar_image);
   layer_add_child(window_layer, bitmap_layer_get_layer(meter_bar_layer));
 
+  signal_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SIGNAL);
+  GRect sig_frame = (GRect) {
+    .origin = { .x = 74, .y = 134 },
+    .size = signal_image->bounds.size
+  };
+  signal_layer = bitmap_layer_create(sig_frame);
+  bitmap_layer_set_bitmap(signal_layer, signal_image);
+  layer_add_child(window_layer, bitmap_layer_get_layer(signal_layer));
+
   charge_image_white = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_CHARGE_ICON_WHITE);
   charge_image_black = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_CHARGE_ICON_BLACK);
 
@@ -456,6 +505,7 @@ static void init(void) {
 
   // load date format updates the display
   load_date_format();
+  load_signal();
 
   app_message_register_inbox_received(in_received_handler);
   app_message_register_inbox_dropped(in_dropped_handler);
@@ -471,6 +521,7 @@ static void init(void) {
 static void deinit(void) {
   //APP_LOG(APP_LOG_LEVEL_DEBUG, "Writing Persistant Data %d", current_date_format);
   persist_write_int(DATE_FORMAT_PKEY, current_date_format);
+  persist_write_bool(SIGNAL_PKEY, signal_is_on);
 
   layer_remove_from_parent(bitmap_layer_get_layer(background_layer));
   bitmap_layer_destroy(background_layer);
@@ -479,6 +530,10 @@ static void deinit(void) {
   layer_remove_from_parent(bitmap_layer_get_layer(bluetooth_layer));
   bitmap_layer_destroy(bluetooth_layer);
   gbitmap_destroy(bluetooth_image);
+
+  layer_remove_from_parent(bitmap_layer_get_layer(signal_layer));
+  bitmap_layer_destroy(signal_layer);
+  gbitmap_destroy(signal_image);
 
   layer_remove_from_parent(bitmap_layer_get_layer(meter_bar_layer));
   bitmap_layer_destroy(meter_bar_layer);

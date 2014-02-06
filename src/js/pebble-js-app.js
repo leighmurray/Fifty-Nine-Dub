@@ -1,4 +1,5 @@
-var configKeys = ["DATE_FORMAT"];
+var configKeys = ["DATE_FORMAT", "SIGNAL"];
+
 
 Pebble.addEventListener("ready",
   function(e) {
@@ -9,10 +10,10 @@ Pebble.addEventListener("ready",
 
 Pebble.addEventListener("showConfiguration",
   function(e) {
-	var url = 'http://59dub.leighmurray.com/settings.htm';
-	//url += GetJSONConfig();
-	//url = encodeURI(url);
-	//console.log(url);
+	var url = 'http://59dub.leighmurray.com/settings.htm#';
+	url += GetJSONConfig();
+	url = encodeURI(url);
+	console.log(url);
 	Pebble.openURL(url);
   }
 );
@@ -33,6 +34,7 @@ Pebble.addEventListener("webviewclosed",
 		SetConfig(returnedObject.name, returnedObject.value);
       }
     SendDateFormat();
+    SendHourlySignal();
   }
 );
 
@@ -42,6 +44,15 @@ function SendDateFormat () {
 		SendAppMessage("set_date_format", Number(format));
 	} else {
 		console.log("no date format found");
+	}
+}
+
+function SendHourlySignal () {
+	var format = GetConfig("SIGNAL");
+	if (format !== null) {
+		SendAppMessage("set_signal", Number(format));
+	} else {
+		console.log("no signal value found");
 	}
 }
 

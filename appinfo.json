@@ -3,8 +3,8 @@
   "shortName" : "59 Dub",
   "longName" : "59 Dub",
   "companyName" : "Leigh Murray",
-  "versionCode" : 1,
-  "versionLabel" : "1.0",
+  "versionCode" : 2,
+  "versionLabel" : "1.1",
   "capabilities": [ "configurable" ],
   "watchapp" : {
     "watchface" : true
@@ -21,9 +21,14 @@
       },
       {
         "type": "png",
-        "name": "IMAGE_MENU_ICON",
-        "file": "images/menu_icon_91w.png",
-        "menu_icon": true
+        "name": "IMAGE_SIGNAL",
+        "file": "images/sig.png"
+      },
+      {
+        "type": "png",
+        "name": "MENU_ICON",
+        "file": "images/menu_icon.png",
+        "menuIcon": "true"
       },
       {
         "type": "png",
