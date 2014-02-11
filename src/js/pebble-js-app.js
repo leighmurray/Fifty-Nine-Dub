@@ -1,10 +1,10 @@
-var configKeys = ["DATE_FORMAT", "SIGNAL"];
+var configKeys = ["DATE_FORMAT", "SIGNAL", "BT"];
 
 
 Pebble.addEventListener("ready",
   function(e) {
   	//console.log("Yes, it's running!!!");
-	SendDateFormat();
+	SendAll();
   }
 );
 
@@ -31,12 +31,18 @@ Pebble.addEventListener("webviewclosed",
 
     for (var i = 0; i < configuration.length; i++) {
       var returnedObject = configuration[i];
-		SetConfig(returnedObject.name, returnedObject.value);
-      }
-    SendDateFormat();
-    SendHourlySignal();
+	  SetConfig(returnedObject.name, returnedObject.value);
+    }
+	SendAll();
+
   }
 );
+
+function SendAll () {
+	SendDateFormat();
+	SendHourlySignal();
+	setTimeout(SendBT, 1000);
+}
 
 function SendDateFormat () {
 	var format = GetConfig("DATE_FORMAT");
@@ -53,6 +59,15 @@ function SendHourlySignal () {
 		SendAppMessage("set_signal", Number(format));
 	} else {
 		console.log("no signal value found");
+	}
+}
+
+function SendBT () {
+	var format = GetConfig("BT");
+	if (format !== null) {
+		SendAppMessage("set_vibrate_on_bt", Number(format));
+	} else {
+		console.log("no bt value found");
 	}
 }
 

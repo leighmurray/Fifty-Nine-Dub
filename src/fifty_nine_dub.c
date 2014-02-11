@@ -30,11 +30,13 @@ static BitmapLayer *charge_layer_black;
 
 #define DATE_FORMAT_PKEY 1
 #define SIGNAL_PKEY 2
+#define BT_PKEY 3
 #define DATE_FORMAT_US 1
 #define DATE_FORMAT_INT 2
 
 static int current_date_format;
 static bool signal_is_on;
+static bool vibrate_on_bt;
 
 const int DAY_NAME_IMAGE_RESOURCE_IDS[] = {
   RESOURCE_ID_IMAGE_DAY_NAME_SUN,
@@ -260,6 +262,15 @@ static void set_signal (bool is_on) {
 	layer_set_hidden(bitmap_layer_get_layer(signal_layer), !signal_is_on);
 }
 
+static void set_vibrate_on_bt (bool do_vibrate) {
+	if (do_vibrate) {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting watch to vibrate on BT loss");
+	} else {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting watch NOT TO vibrate on BT loss");
+	}
+	vibrate_on_bt = do_vibrate;
+}
+
 static void update_display(struct tm *current_time, bool force_update) {
 
   update_seconds(current_time->tm_sec);
@@ -290,7 +301,7 @@ static void update_display(struct tm *current_time, bool force_update) {
 
 static void handle_bluetooth_connection (bool isConnected) {
   layer_set_hidden(bitmap_layer_get_layer(bluetooth_layer), isConnected);
-  if (!isConnected) {
+  if (!isConnected && vibrate_on_bt) {
     vibrate_for_disconnect();
   }
 }
@@ -335,6 +346,17 @@ static void load_date_format () {
   }
 }
 
+static void load_bt () {
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Loading BT from watch config");
+	if (persist_exists (BT_PKEY)) {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Found it, setting BT to whatever was saved");
+		set_vibrate_on_bt(persist_read_bool(BT_PKEY));
+	} else {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Nothing found setting BT to true");
+		set_vibrate_on_bt(true);
+	}
+}
+
 // this function will be called when the app initialises
 static void load_signal () {
 
@@ -374,8 +396,11 @@ void in_received_handler(DictionaryIterator *iter, void *context) {
   }
   else if (strcmp(header, "set_signal") == 0) {
   	int returned_value = text_tuple->value->uint8;
-
     set_signal(returned_value == 1 ? true : false);
+  }
+  else if (strcmp(header, "set_vibrate_on_bt") == 0) {
+  	int returned_value = text_tuple->value->uint8;
+  	set_vibrate_on_bt(returned_value == 1 ? true : false);
   }
   else if (strcmp(header, "error") == 0) {
   	///text_layer_set_text(status_layer, text_tuple->value->cstring);
@@ -506,6 +531,7 @@ static void init(void) {
   // load date format updates the display
   load_date_format();
   load_signal();
+  load_bt();
 
   app_message_register_inbox_received(in_received_handler);
   app_message_register_inbox_dropped(in_dropped_handler);
@@ -522,6 +548,7 @@ static void deinit(void) {
   //APP_LOG(APP_LOG_LEVEL_DEBUG, "Writing Persistant Data %d", current_date_format);
   persist_write_int(DATE_FORMAT_PKEY, current_date_format);
   persist_write_bool(SIGNAL_PKEY, signal_is_on);
+  persist_write_bool(BT_PKEY, vibrate_on_bt);
 
   layer_remove_from_parent(bitmap_layer_get_layer(background_layer));
   bitmap_layer_destroy(background_layer);
